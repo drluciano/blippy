@@ -1,0 +1,39 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows10.0.19041.0</TargetFramework>
+    <SupportedOSPlatformVersion>10.0.19041.0</SupportedOSPlatformVersion>
+    <UseWPF>true</UseWPF>
+    <!-- Only for NotifyIcon (the tray) and the color picker. -->
+    <UseWindowsForms>true</UseWindowsForms>
+    <!-- Lets the app build (not run) on Linux and macOS too. -->
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <!-- WFO0003 asks Windows Forms apps to set DPI in code; this is a WPF app that only borrows NotifyIcon, so the manifest is right. -->
+    <NoWarn>$(NoWarn);WFO0003</NoWarn>
+    <AssemblyName>Blippy</AssemblyName>
+    <RootNamespace>Blippy</RootNamespace>
+    <Product>Blippy</Product>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- WPF and Windows Forms share many type names; keep WPF's in scope by default. -->
+    <Using Remove="System.Windows.Forms" />
+    <Using Remove="System.Drawing" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="Assets\Icons\*.svg" LogicalName="Blippy.Icons.%(Filename).svg" />
+    <None Include="Assets\Icons\LICENSE-tabler-icons.txt" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="HidSharp" Version="2.6.4" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Blippy.Core\Blippy.Core.csproj" />
+  </ItemGroup>
+
+</Project>

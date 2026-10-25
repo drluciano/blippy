@@ -5,8 +5,9 @@ using Blippy.Providers;
 namespace Blippy;
 
 /// <summary>
-/// Asks every provider for battery levels on a timer (or right away on request), merges
-/// what they find and hands the list to the UI thread.
+/// Asks every provider for battery levels on a timer, right away on request, and soon
+/// after any device connects or disconnects; merges what they find and hands the list to
+/// the UI thread.
 /// </summary>
 internal sealed class BatteryMonitor : IDisposable
 {
@@ -15,7 +16,16 @@ internal sealed class BatteryMonitor : IDisposable
     private readonly DualSenseProvider dualSense = new();
     private readonly IBatteryProvider[] providers;
     private readonly CancellationTokenSource stop = new();
+    private readonly ConnectionWatcher? connections;
+    private readonly Timer soon;
+    private readonly Timer settled;
     private TaskCompletionSource wake = NewWake();
+    private int repaintPending;
+
+    // Plugging something in fires a burst of events; wait for it to pass, then check.
+    // A newly connected pad can take a few seconds to start reporting, so check once more.
+    private static readonly TimeSpan SoonAfterChange = TimeSpan.FromMilliseconds(700);
+    private static readonly TimeSpan SettledAfterChange = TimeSpan.FromSeconds(4);
 
     public BatteryMonitor(SettingsStore settings, Dispatcher ui)
     {
@@ -24,6 +34,25 @@ internal sealed class BatteryMonitor : IDisposable
         IBatteryProvider?[] all = [dualSense, Safe(() => new GamingInputProvider()), new WindowsBluetoothProvider()];
         providers = all.OfType<IBatteryProvider>().ToArray();
         settings.Changed += _ => RefreshNow();
+
+        soon = new Timer(_ => RefreshAfterChange());
+        settled = new Timer(_ => RefreshAfterChange());
+        connections = Safe(() => new ConnectionWatcher());
+        if (connections is not null) connections.Changed += OnConnectionChanged;
+    }
+
+    private void OnConnectionChanged(string why)
+    {
+        Log.Info(why);
+        soon.Change(SoonAfterChange, Timeout.InfiniteTimeSpan);
+        settled.Change(SettledAfterChange, Timeout.InfiniteTimeSpan);
+    }
+
+    private void RefreshAfterChange()
+    {
+        // A pad that was plugged in or out may have reset its lightbar to the default blue.
+        Interlocked.Exchange(ref repaintPending, 1);
+        RefreshNow();
     }
 
     public IReadOnlyList<BatteryReading> Latest { get; private set; } = [];
@@ -79,6 +108,7 @@ internal sealed class BatteryMonitor : IDisposable
         var merged = ReadingMerger.Merge(all);
         try
         {
+            if (Interlocked.Exchange(ref repaintPending, 0) == 1) dualSense.ForceRepaint();
             dualSense.ApplyLightbar(settings.Current, merged);
         }
         catch (Exception ex)
@@ -90,7 +120,7 @@ internal sealed class BatteryMonitor : IDisposable
 
     private static TaskCompletionSource NewWake() => new(TaskCreationOptions.RunContinuationsAsynchronously);
 
-    private static IBatteryProvider? Safe(Func<IBatteryProvider> create)
+    private static T? Safe<T>(Func<T> create) where T : class
     {
         try
         {
@@ -105,6 +135,9 @@ internal sealed class BatteryMonitor : IDisposable
 
     public void Dispose()
     {
+        connections?.Dispose();
+        soon.Dispose();
+        settled.Dispose();
         stop.Cancel();
         stop.Dispose();
     }

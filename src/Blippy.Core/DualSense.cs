@@ -32,6 +32,64 @@ public static class DualSense
     public const byte CalibrationFeatureReportId = 0x05;
     public const int CalibrationFeatureReportLength = 41;
 
+    /// <summary>Feature report 0x09 (pairing info) carries the controller's Bluetooth address over USB and Bluetooth alike.</summary>
+    public const byte PairingFeatureReportId = 0x09;
+    public const int PairingFeatureReportLength = 20;
+
+    /// <summary>
+    /// The controller's Bluetooth address from a pairing info feature report, as twelve
+    /// lowercase hex digits ("a0ab51c3d4e5"), or null if the report is not one.
+    /// </summary>
+    /// <remarks>The address is stored least significant byte first, from byte 1.</remarks>
+    public static string? MacFromPairingReport(ReadOnlySpan<byte> report)
+    {
+        if (report.Length < 7 || report[0] != PairingFeatureReportId) return null;
+        var mac = report.Slice(1, 6);
+        if (mac.IndexOfAnyExcept((byte)0) < 0) return null;
+        Span<byte> ordered = stackalloc byte[6];
+        for (int i = 0; i < 6; i++) ordered[i] = mac[5 - i];
+        return Convert.ToHexStringLower(ordered);
+    }
+
+    /// <summary>
+    /// The address from a HID serial number, which Windows sets to the Bluetooth address
+    /// for Bluetooth HID devices ("a0ab51c3d4e5", sometimes with colons or dashes).
+    /// </summary>
+    public static string? MacFromSerial(string? serial)
+    {
+        if (string.IsNullOrWhiteSpace(serial)) return null;
+        var hex = new string(serial.Where(Uri.IsHexDigit).Select(char.ToLowerInvariant).ToArray());
+        return hex.Length == 12 && hex.Any(c => c != '0') ? hex : null;
+    }
+
+    /// <summary>One sighting of a controller on one connection.</summary>
+    public sealed record Sighting(string? Mac, bool Bluetooth, BatteryReading Reading);
+
+    /// <summary>
+    /// A controller plugged in over USB while it is still paired over Bluetooth shows up
+    /// as two HID devices. Folds sightings with the same address into one reading, keyed
+    /// by the address so it stays the same device whichever cable or radio it uses.
+    /// </summary>
+    /// <remarks>
+    /// The USB reading wins: it is the connection that knows about the charger. Sightings
+    /// whose address could not be read stay separate rather than being guessed together.
+    /// </remarks>
+    public static IReadOnlyList<(BatteryReading Reading, IReadOnlyList<Sighting> Connections)> Combine(IEnumerable<Sighting> sightings)
+    {
+        var result = new List<(BatteryReading, IReadOnlyList<Sighting>)>();
+        foreach (var group in sightings.GroupBy(s => s.Mac ?? "path:" + s.Reading.Id))
+        {
+            var all = group.OrderBy(s => s.Bluetooth).ToList();
+            var best = all[0].Reading;
+            if (all[0].Mac is { } mac) best = best with { Id = "dualsense:" + mac };
+            // Charging shows on whichever link reports it.
+            if (all.Any(s => s.Reading.IsCharging) && best.Charge != ChargeState.Full)
+                best = best with { Charge = ChargeState.Charging };
+            result.Add((best, all));
+        }
+        return result;
+    }
+
     // Offset of the status byte inside the common input report body.
     private const int StatusOffsetInBody = 52;
 

@@ -23,9 +23,13 @@ controller glows in a color you pick, and it slides toward red as it drains.
   in one after another on springs, battery bars spring to their level while the number counts up, the
   charging bolt wiggles, buttons squish, the gear turns into a close button, and the header light drifts.
   When Windows has "Animation effects" turned off, everything just appears.
+- **Notices connections right away.** Plugging in, unplugging, pairing or switching a device off triggers a
+  check within a second (and once more a few seconds later, for pads that are slow to start reporting),
+  instead of waiting for the next timed check.
 - **DualSense lightbar gradient** (off by default): pick one of eight colors or any color you like. The
   settings show the gradient exactly as the controller will. Blippy only writes the lightbar when the color
-  should change, so a game that sets its own color is not fought every few seconds.
+  should change or the controller's connection changes (plugging a DualSense in or out resets it to blue),
+  so a game that sets its own color is not fought every few seconds.
 - **Low battery nudges** at 20% and 10%, once each, re-armed when the device charges.
 - **Start with Windows**, refresh every 15 s, 30 s, 1 min or 2 min.
 
@@ -38,7 +42,9 @@ controller glows in a color you pick, and it slides toward red as it drains.
 | Headphones, earbuds, mice, keyboards, BLE controllers | The battery level Windows shows in **Settings › Bluetooth & devices** (`DEVPKEY_Bluetooth_Battery`). |
 
 When two sources see the same device (an Xbox controller is often seen by both of the last two) it is shown
-once, from the more specific source. The DualSense reports in steps of 10% because that is all the
+once, from the more specific source. A DualSense charging over USB while it is still connected over
+Bluetooth shows up to Windows as two devices; Blippy recognises them as one controller by its Bluetooth
+address and shows it once. The DualSense reports in steps of 10% because that is all the
 controller itself reports.
 
 ## Install

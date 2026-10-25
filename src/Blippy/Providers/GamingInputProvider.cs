@@ -14,10 +14,10 @@ internal sealed class GamingInputProvider : IBatteryProvider
 
     public GamingInputProvider()
     {
-        // The controller list fills in asynchronously once something subscribes, so
-        // subscribe at start instead of on the first read.
-        RawGameController.RawGameControllerAdded += (_, c) => Log.Info($"Controller connected: {c.DisplayName}");
-        RawGameController.RawGameControllerRemoved += (_, c) => Log.Info($"Controller disconnected: {c.DisplayName}");
+        // The controller list fills in asynchronously once something touches it, so
+        // touch it at start instead of on the first read. ConnectionWatcher also
+        // subscribes to its events, which keeps it filled.
+        _ = RawGameController.RawGameControllers;
     }
 
     public string Name => "Windows.Gaming.Input";

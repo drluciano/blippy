@@ -98,3 +98,86 @@ public class DualSenseTests
         Assert.Equal(expected, DualSense.IsDualSense(vid, pid));
     }
 }
+
+public class DualSensePairingTests
+{
+    private static BatteryReading Pad(string path, int level, ChargeState charge = ChargeState.Discharging) =>
+        new(path, "DualSense Wireless Controller", DeviceKind.DualSense, level, charge, BatterySource.DualSenseHid);
+
+    [Fact]
+    public void Reads_the_address_from_the_pairing_report_backwards()
+    {
+        byte[] report = [0x09, 0xE5, 0xD4, 0xC3, 0x51, 0xAB, 0xA0, 0x08, 0x25, 0x00];
+        Assert.Equal("a0ab51c3d4e5", DualSense.MacFromPairingReport(report));
+    }
+
+    [Fact]
+    public void An_empty_or_wrong_pairing_report_has_no_address()
+    {
+        Assert.Null(DualSense.MacFromPairingReport(new byte[20] { 0x09, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }));
+        Assert.Null(DualSense.MacFromPairingReport([0x05, 1, 2, 3, 4, 5, 6]));
+        Assert.Null(DualSense.MacFromPairingReport([0x09, 1]));
+    }
+
+    [Theory]
+    [InlineData("a0ab51c3d4e5", "a0ab51c3d4e5")]
+    [InlineData("A0:AB:51:C3:D4:E5", "a0ab51c3d4e5")]
+    [InlineData("a0-ab-51-c3-d4-e5", "a0ab51c3d4e5")]
+    [InlineData("", null)]
+    [InlineData(null, null)]
+    [InlineData("000000000000", null)]
+    [InlineData("12345", null)]
+    public void Reads_the_address_from_a_serial_number(string? serial, string? mac)
+    {
+        Assert.Equal(mac, DualSense.MacFromSerial(serial));
+    }
+
+    [Fact]
+    public void One_controller_on_bluetooth_and_usb_is_one_device_preferring_usb()
+    {
+        var combined = DualSense.Combine(
+        [
+            new("a0ab51c3d4e5", Bluetooth: true, Pad(@"\\?\hid#bt", 40)),
+            new("a0ab51c3d4e5", Bluetooth: false, Pad(@"\\?\hid#usb", 45, ChargeState.Charging)),
+        ]);
+        var (reading, connections) = Assert.Single(combined);
+        Assert.Equal("dualsense:a0ab51c3d4e5", reading.Id);
+        Assert.Equal(45, reading.Level);
+        Assert.Equal(ChargeState.Charging, reading.Charge);
+        Assert.Equal(2, connections.Count);
+    }
+
+    [Fact]
+    public void The_id_stays_the_same_when_the_cable_comes_out()
+    {
+        var both = DualSense.Combine(
+        [
+            new("a0ab51c3d4e5", true, Pad("bt", 40)),
+            new("a0ab51c3d4e5", false, Pad("usb", 45)),
+        ]);
+        var btOnly = DualSense.Combine([new("a0ab51c3d4e5", true, Pad("bt", 40))]);
+        Assert.Equal(both[0].Reading.Id, btOnly[0].Reading.Id);
+    }
+
+    [Fact]
+    public void Two_controllers_stay_two()
+    {
+        var combined = DualSense.Combine(
+        [
+            new("a0ab51c3d4e5", true, Pad("bt1", 40)),
+            new("a0ab51c3d4e6", true, Pad("bt2", 70)),
+        ]);
+        Assert.Equal(2, combined.Count);
+    }
+
+    [Fact]
+    public void Controllers_without_an_address_are_not_guessed_together()
+    {
+        var combined = DualSense.Combine(
+        [
+            new(null, true, Pad("bt", 40)),
+            new(null, false, Pad("usb", 45)),
+        ]);
+        Assert.Equal(["bt", "usb"], combined.Select(c => c.Reading.Id).Order());
+    }
+}

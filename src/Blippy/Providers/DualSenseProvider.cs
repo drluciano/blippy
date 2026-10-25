@@ -1,5 +1,5 @@
-using Blippy.Core;
 using System.IO;
+using Blippy.Core;
 using HidSharp;
 
 namespace Blippy.Providers;
@@ -10,8 +10,13 @@ namespace Blippy.Providers;
 /// </summary>
 internal sealed class DualSenseProvider : IBatteryProvider
 {
-    private readonly Dictionary<string, HidDevice> pads = new();
-    private readonly Dictionary<string, Rgb> lastLightbar = new();
+    private sealed record Paint(Rgb Color, string Connections);
+
+    // Each controller (by address) and the HID devices it is reachable through right now.
+    private readonly Dictionary<string, IReadOnlyList<HidDevice>> pads = new();
+    private readonly Dictionary<string, Paint> painted = new();
+    // Device path → Bluetooth address; a path only lives as long as its connection.
+    private readonly Dictionary<string, string?> macs = new();
     private readonly object gate = new();
     private byte sequence;
 
@@ -20,35 +25,85 @@ internal sealed class DualSenseProvider : IBatteryProvider
     public Task<IReadOnlyList<BatteryReading>> ReadAsync(CancellationToken cancel) =>
         Task.Run<IReadOnlyList<BatteryReading>>(() => Read(cancel), cancel);
 
+    /// <summary>
+    /// Forgets which colors were painted, so the next round paints every pad again. Called
+    /// when devices come and go: plugging a pad in or out over USB resets its lightbar.
+    /// </summary>
+    public void ForceRepaint()
+    {
+        lock (gate) painted.Clear();
+    }
+
     private List<BatteryReading> Read(CancellationToken cancel)
     {
-        var readings = new List<BatteryReading>();
         var found = DeviceList.Local.GetHidDevices(DualSense.SonyVendorId)
             .Where(d => DualSense.IsDualSense(d.VendorID, d.ProductID))
             .ToList();
 
+        var sightings = new List<DualSense.Sighting>();
+        var devicesByPath = new Dictionary<string, HidDevice>();
         lock (gate)
         {
-            pads.Clear();
+            foreach (var path in macs.Keys.Except(found.Select(d => d.DevicePath)).ToList()) macs.Remove(path);
+
             foreach (var device in found)
             {
                 cancel.ThrowIfCancellationRequested();
-                pads[device.DevicePath] = device;
+                devicesByPath[device.DevicePath] = device;
+                if (!macs.TryGetValue(device.DevicePath, out var mac))
+                    macs[device.DevicePath] = mac = ReadMac(device);
                 if (ReadBattery(device) is not { } battery) continue;
                 var name = device.ProductID == DualSense.DualSenseEdgeProductId
                     ? "DualSense Edge"
                     : "DualSense Wireless Controller";
-                readings.Add(new BatteryReading(
-                    device.DevicePath, name, DeviceKind.DualSense, battery.Level, battery.Charge, BatterySource.DualSenseHid));
+                sightings.Add(new DualSense.Sighting(mac, IsBluetooth(device), new BatteryReading(
+                    device.DevicePath, name, DeviceKind.DualSense, battery.Level, battery.Charge, BatterySource.DualSenseHid)));
             }
-            // Forget lightbar colors for pads that are gone, so a reconnected pad gets painted again.
-            foreach (var id in lastLightbar.Keys.Where(k => !pads.ContainsKey(k)).ToList()) lastLightbar.Remove(id);
+
+            var combined = DualSense.Combine(sightings);
+            pads.Clear();
+            foreach (var (reading, connections) in combined)
+                pads[reading.Id] = connections.Select(c => devicesByPath[c.Reading.Id]).ToList();
+            // Forget pads that are gone, so one that comes back gets painted again.
+            foreach (var id in painted.Keys.Except(pads.Keys).ToList()) painted.Remove(id);
+            return combined.Select(c => c.Reading).ToList();
         }
-        return readings;
     }
 
     private static bool IsBluetooth(HidDevice device) =>
         device.GetMaxInputReportLength() >= 78;
+
+    /// <summary>The pad's Bluetooth address, so the same pad on USB and Bluetooth is recognised as one.</summary>
+    private static string? ReadMac(HidDevice device)
+    {
+        try
+        {
+            if (device.TryOpen(out HidStream stream))
+            {
+                using (stream)
+                {
+                    var report = new byte[Math.Max(DualSense.PairingFeatureReportLength, device.GetMaxFeatureReportLength())];
+                    report[0] = DualSense.PairingFeatureReportId;
+                    stream.GetFeature(report);
+                    if (DualSense.MacFromPairingReport(report) is { } mac) return mac;
+                }
+            }
+        }
+        catch (Exception ex) when (ex is IOException or TimeoutException or UnauthorizedAccessException)
+        {
+            Log.Error($"Reading DualSense pairing info {device.DevicePath}", ex);
+        }
+
+        try
+        {
+            // Over Bluetooth Windows also puts the address in the serial number.
+            return DualSense.MacFromSerial(device.GetSerialNumber());
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return null;
+        }
+    }
 
     private static (int Level, ChargeState Charge)? ReadBattery(HidDevice device)
     {
@@ -93,14 +148,15 @@ internal sealed class DualSenseProvider : IBatteryProvider
     }
 
     /// <summary>
-    /// Colors each pad's lightbar for its battery level. Writes only when the color
-    /// changes, so a game that sets its own color is not fought every few seconds.
+    /// Colors each pad's lightbar for its battery level, on every connection it has.
+    /// Writes only when the color or the pad's connections change, so a game that sets
+    /// its own color is not fought every few seconds.
     /// </summary>
     public void ApplyLightbar(Settings settings, IEnumerable<BatteryReading> readings)
     {
         if (!settings.LightbarEnabled)
         {
-            lock (gate) lastLightbar.Clear();
+            lock (gate) painted.Clear();
             return;
         }
         var gradient = LightbarGradient.Default(settings.LightbarRgb);
@@ -108,10 +164,13 @@ internal sealed class DualSenseProvider : IBatteryProvider
         {
             foreach (var r in readings.Where(r => r.Source == BatterySource.DualSenseHid))
             {
-                if (!pads.TryGetValue(r.Id, out var device)) continue;
-                var color = gradient.ColorFor(r.Level);
-                if (lastLightbar.TryGetValue(r.Id, out var last) && last == color) continue;
-                if (WriteLightbar(device, color)) lastLightbar[r.Id] = color;
+                if (!pads.TryGetValue(r.Id, out var connections)) continue;
+                var paint = new Paint(gradient.ColorFor(r.Level), string.Join("|", connections.Select(d => d.DevicePath).Order()));
+                if (painted.TryGetValue(r.Id, out var last) && last == paint) continue;
+                // Paint every link: the pad shows whichever one it last heard from.
+                var wrote = false;
+                foreach (var device in connections) wrote |= WriteLightbar(device, paint.Color);
+                if (wrote) painted[r.Id] = paint;
             }
         }
     }

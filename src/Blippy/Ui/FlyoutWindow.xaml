@@ -81,7 +81,7 @@
                                        FontSize="16" FontWeight="Bold" Foreground="{DynamicResource Text}" />
                             <TextBlock x:Name="EmptyBody" Style="{StaticResource Caption}" TextAlignment="Center" FontSize="13"
                                        Text="Turn on a controller or connect a Bluetooth device. It will pop up here on its own." />
-                            <Button Style="{StaticResource PillButton}" Content="Check now" Margin="0,14,0,0"
+                            <Button Style="{StaticResource PrimaryButton}" Content="Check now" Margin="0,14,0,0"
                                     HorizontalAlignment="Center" Click="OnRefresh" />
                         </StackPanel>
                     </Grid>

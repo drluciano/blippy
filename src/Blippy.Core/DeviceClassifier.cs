@@ -66,4 +66,27 @@ public static class DeviceClassifier
                 return n[..^suffix.Length].Trim();
         return n.Length == 0 ? "Bluetooth device" : n;
     }
+
+    // Names Windows gives to the plumbing under a device rather than to the device itself.
+    private static readonly string[] GenericWords =
+    [
+        "hid device", "hid-compliant", "hid compliant", "gatt", "bluetooth low energy",
+        "bluetooth le ", "generic", "input device", "game controller",
+    ];
+
+    /// <summary>True for names like "HID device" or "Bluetooth Low Energy GATT compliant HID device".</summary>
+    public static bool IsGeneric(string? name)
+    {
+        if (string.IsNullOrWhiteSpace(name)) return true;
+        var n = name.ToLowerInvariant() + " ";
+        return GenericWords.Any(w => n.Contains(w, StringComparison.Ordinal));
+    }
+
+    /// <summary>The first name that is not generic plumbing, cleaned; else the first name cleaned.</summary>
+    public static string BestName(IEnumerable<string?> candidates)
+    {
+        var list = candidates.ToList();
+        var specific = list.FirstOrDefault(n => !IsGeneric(n));
+        return CleanName(specific ?? list.FirstOrDefault());
+    }
 }

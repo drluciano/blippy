@@ -34,6 +34,25 @@ public static class ReadingMerger
             .ToList();
     }
 
+    /// <summary>
+    /// Windows can list one controller twice in the same source: once by its real name and
+    /// once as a generic "HID device". Drops the generic entries that share a vendor and
+    /// product id with a properly named one; two real controllers of the same model both
+    /// have proper names and both stay.
+    /// </summary>
+    public static IReadOnlyList<BatteryReading> DropGenericTwins(IEnumerable<(int VendorId, int ProductId, BatteryReading Reading)> readings)
+    {
+        var list = readings.ToList();
+        var named = list
+            .Where(x => !DeviceClassifier.IsGeneric(x.Reading.Name))
+            .Select(x => (x.VendorId, x.ProductId))
+            .ToHashSet();
+        return list
+            .Where(x => !DeviceClassifier.IsGeneric(x.Reading.Name) || !named.Contains((x.VendorId, x.ProductId)))
+            .Select(x => x.Reading)
+            .ToList();
+    }
+
     private static bool Same(string a, string b) =>
         string.Equals(Normalize(a), Normalize(b), StringComparison.Ordinal);
 

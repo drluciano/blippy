@@ -24,7 +24,7 @@ internal sealed class GamingInputProvider : IBatteryProvider
 
     public Task<IReadOnlyList<BatteryReading>> ReadAsync(CancellationToken cancel)
     {
-        var readings = new List<BatteryReading>();
+        var readings = new List<(int, int, BatteryReading)>();
         foreach (var c in RawGameController.RawGameControllers)
         {
             // The DualSense has its own, more accurate, provider.
@@ -46,8 +46,9 @@ internal sealed class GamingInputProvider : IBatteryProvider
             var name = string.IsNullOrWhiteSpace(c.DisplayName) ? "Controller" : c.DisplayName;
             var kind = c.HardwareVendorId == MicrosoftVendorId ? DeviceKind.Xbox : DeviceClassifier.FromName(name);
             if (kind == DeviceKind.Other) kind = DeviceKind.Gamepad;
-            readings.Add(new BatteryReading(c.NonRoamableId, name, kind, level, charge, BatterySource.GamingInput));
+            readings.Add((c.HardwareVendorId, c.HardwareProductId,
+                new BatteryReading(c.NonRoamableId, name, kind, level, charge, BatterySource.GamingInput)));
         }
-        return Task.FromResult<IReadOnlyList<BatteryReading>>(readings);
+        return Task.FromResult(ReadingMerger.DropGenericTwins(readings));
     }
 }

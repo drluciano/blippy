@@ -44,6 +44,15 @@ internal sealed class WindowsBluetoothProvider : IBatteryProvider
                 .AsTask(cancel);
         }
 
+        // The battery often sits on a child node with a plumbing name ("HID device",
+        // "Bluetooth Low Energy GATT compliant HID device"); the device's own node in the
+        // same container has the name people know it by, like "Xbox Wireless Controller".
+        var containerNames = devices
+            .Where(d => d.Id.StartsWith("BTH", StringComparison.OrdinalIgnoreCase))
+            .Where(d => d.Properties.TryGetValue(ContainerKey, out var c) && c is Guid)
+            .GroupBy(d => (Guid)d.Properties[ContainerKey])
+            .ToDictionary(g => g.Key, g => DeviceClassifier.BestName(g.OrderBy(NamePreference).Select(d => d.Name)));
+
         var readings = new List<BatteryReading>();
         // A headset has several device nodes (one per profile); report each physical device once.
         var seenContainers = new HashSet<Guid>();
@@ -65,12 +74,18 @@ internal sealed class WindowsBluetoothProvider : IBatteryProvider
                 continue;
             }
 
-            var name = DeviceClassifier.CleanName(d.Name);
+            var name = c is Guid g && containerNames.TryGetValue(g, out var best) && DeviceClassifier.IsGeneric(d.Name)
+                ? best
+                : DeviceClassifier.CleanName(d.Name);
             readings.Add(new BatteryReading(
                 d.Id, name, DeviceClassifier.FromName(name), level, ChargeState.Unknown, BatterySource.WindowsBluetooth));
         }
         return readings;
     }
+
+    /// <summary>The device's own node (BTHLE\DEV_…, BTHENUM\DEV_…) is named after it; prefer it.</summary>
+    private static int NamePreference(DeviceInformation d) =>
+        d.Id.Contains(@"\DEV_", StringComparison.OrdinalIgnoreCase) ? 0 : 1;
 
     private static bool IsFalse(IReadOnlyDictionary<string, object> props, string key) =>
         props.TryGetValue(key, out var v) && v is bool b && !b;

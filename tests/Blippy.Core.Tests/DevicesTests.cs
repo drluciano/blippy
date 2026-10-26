@@ -108,3 +108,65 @@ public class DevicesTests
         }
     }
 }
+
+public class GenericNameTests
+{
+    [Theory]
+    [InlineData("HID device", true)]
+    [InlineData("HID-compliant game controller", true)]
+    [InlineData("Bluetooth Low Energy GATT compliant HID device", true)]
+    [InlineData("", true)]
+    [InlineData(null, true)]
+    [InlineData("Xbox Wireless Controller", false)]
+    [InlineData("WH-1000XM4 Hands-Free AG", false)]
+    [InlineData("MX Master 3S", false)]
+    public void Spots_plumbing_names(string? name, bool generic)
+    {
+        Assert.Equal(generic, DeviceClassifier.IsGeneric(name));
+    }
+
+    [Fact]
+    public void Prefers_the_real_name_from_the_same_device()
+    {
+        Assert.Equal("Xbox Wireless Controller",
+            DeviceClassifier.BestName(["Bluetooth Low Energy GATT compliant HID device", "Xbox Wireless Controller"]));
+        Assert.Equal("HID device", DeviceClassifier.BestName(["HID device"]));
+        Assert.Equal("Bluetooth device", DeviceClassifier.BestName([]));
+    }
+
+    private static BatteryReading R(string id, string name) =>
+        new(id, name, DeviceClassifier.FromName(name), 50, ChargeState.Discharging, BatterySource.GamingInput);
+
+    [Fact]
+    public void A_generic_twin_of_a_named_controller_is_dropped()
+    {
+        var kept = ReadingMerger.DropGenericTwins(
+        [
+            (0x045E, 0x0B13, R("a", "Xbox Wireless Controller")),
+            (0x045E, 0x0B13, R("b", "HID device")),
+        ]);
+        Assert.Equal(["a"], kept.Select(k => k.Id));
+    }
+
+    [Fact]
+    public void Two_named_controllers_of_one_model_both_stay()
+    {
+        var kept = ReadingMerger.DropGenericTwins(
+        [
+            (0x045E, 0x0B13, R("a", "Xbox Wireless Controller")),
+            (0x045E, 0x0B13, R("b", "Xbox Wireless Controller")),
+        ]);
+        Assert.Equal(2, kept.Count);
+    }
+
+    [Fact]
+    public void A_generic_controller_with_no_named_twin_stays()
+    {
+        var kept = ReadingMerger.DropGenericTwins(
+        [
+            (0x045E, 0x0B13, R("a", "Xbox Wireless Controller")),
+            (0x2DC8, 0x6001, R("b", "HID device")),
+        ]);
+        Assert.Equal(2, kept.Count);
+    }
+}

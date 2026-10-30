@@ -1,0 +1,45 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      - name: Test
+        run: dotnet test tests/Blippy.Core.Tests --configuration Release
+
+      - name: Publish
+        run: >
+          dotnet publish src/Blippy/Blippy.csproj --configuration Release --runtime win-x64
+          --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:EnableCompressionInSingleFile=true
+          --output artifacts/Blippy
+
+      - name: Render UI preview
+        shell: pwsh
+        run: |
+          $p = Start-Process -FilePath artifacts/Blippy/Blippy.exe -ArgumentList '--preview', 'artifacts/preview' -Wait -PassThru
+          if ($p.ExitCode -ne 0) { throw "Preview failed with exit code $($p.ExitCode)" }
+          Get-ChildItem artifacts/preview
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Blippy-win-x64
+          path: artifacts/Blippy
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ui-preview
+          path: artifacts/preview

@@ -1,0 +1,297 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:m="clr-namespace:Blippy.Motion">
+
+    <!-- Placeholder brushes so the designer has something; Theme.Apply replaces them at start. -->
+    <SolidColorBrush x:Key="Text" Color="#26253A" />
+    <SolidColorBrush x:Key="TextSecondary" Color="#62617C" />
+    <SolidColorBrush x:Key="TextMuted" Color="#9897AE" />
+    <SolidColorBrush x:Key="Primary" Color="#6E64E8" />
+    <SolidColorBrush x:Key="PrimarySoft" Color="#ECEAFE" />
+    <SolidColorBrush x:Key="OnPrimary" Color="#FFFFFF" />
+    <SolidColorBrush x:Key="Card" Color="#D9FFFFFF" />
+    <SolidColorBrush x:Key="CardHover" Color="#FFFFFFFF" />
+    <SolidColorBrush x:Key="CardBorder" Color="#1A786EC8" />
+    <SolidColorBrush x:Key="Track" Color="#1A6E64E8" />
+    <Color x:Key="ShadowColor">#5B4FD0</Color>
+    <SolidColorBrush x:Key="Background" Color="#F4F1FF" />
+    <SolidColorBrush x:Key="Hero" Color="#8C7CF0" />
+
+    <FontFamily x:Key="Rounded">Segoe UI Variable Display, Segoe UI</FontFamily>
+
+    <LinearGradientBrush x:Key="ButtonGradient" StartPoint="0,0" EndPoint="1,1">
+        <GradientStop Color="#7C6CF0" Offset="0" />
+        <GradientStop Color="#5E8EF0" Offset="1" />
+    </LinearGradientBrush>
+
+    <!-- The knob springs across, chips and swatches pop when picked. -->
+    <m:SpringEase x:Key="PopEase" Damping="7" Stiffness="260" Mass="0.8" />
+    <m:SpringEase x:Key="SnappyEase" Damping="13" Stiffness="320" Mass="0.7" />
+
+    <Style x:Key="SectionTitle" TargetType="TextBlock">
+        <Setter Property="FontFamily" Value="{StaticResource Rounded}" />
+        <Setter Property="FontSize" Value="14" />
+        <Setter Property="FontWeight" Value="Bold" />
+        <Setter Property="Foreground" Value="{DynamicResource Text}" />
+        <Setter Property="Margin" Value="0,0,0,8" />
+    </Style>
+
+    <Style x:Key="Caption" TargetType="TextBlock">
+        <Setter Property="FontFamily" Value="{StaticResource Rounded}" />
+        <Setter Property="FontSize" Value="12" />
+        <Setter Property="Foreground" Value="{DynamicResource TextSecondary}" />
+        <Setter Property="TextWrapping" Value="Wrap" />
+    </Style>
+
+    <Style x:Key="SectionCard" TargetType="Border">
+        <Setter Property="CornerRadius" Value="20" />
+        <Setter Property="Padding" Value="14" />
+        <Setter Property="Margin" Value="0,0,0,10" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="Background" Value="{DynamicResource Card}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource CardBorder}" />
+    </Style>
+
+    <!-- A gradient button for the main action. Softly rounded, not a pill. -->
+    <Style x:Key="PrimaryButton" TargetType="Button">
+        <Setter Property="m:Squish.Enabled" Value="True" />
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="Foreground" Value="White" />
+        <Setter Property="FontFamily" Value="{StaticResource Rounded}" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="FontSize" Value="13" />
+        <Setter Property="Padding" Value="18,9" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border CornerRadius="12" Background="{StaticResource ButtonGradient}" Padding="{TemplateBinding Padding}">
+                        <Border.Effect>
+                            <DropShadowEffect Color="#5B4FD0" BlurRadius="14" ShadowDepth="3" Opacity="0.35" />
+                        </Border.Effect>
+                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    </Border>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- Quiet text button. -->
+    <Style x:Key="GhostButton" TargetType="Button">
+        <Setter Property="m:Squish.Enabled" Value="True" />
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="Foreground" Value="{DynamicResource TextSecondary}" />
+        <Setter Property="FontFamily" Value="{StaticResource Rounded}" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="FontSize" Value="12" />
+        <Setter Property="Padding" Value="12,7" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border x:Name="Bg" CornerRadius="10" Background="Transparent" Padding="{TemplateBinding Padding}">
+                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Bg" Property="Background" Value="{DynamicResource PrimarySoft}" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- Round icon button that sits on the hero card. -->
+    <Style x:Key="HeroIconButton" TargetType="Button">
+        <Setter Property="m:Squish.Enabled" Value="True" />
+        <Setter Property="m:Squish.HoverScale" Value="1.1" />
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="Width" Value="36" />
+        <Setter Property="Height" Value="36" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border x:Name="Bg" CornerRadius="12" Background="#33FFFFFF">
+                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Bg" Property="Background" Value="#55FFFFFF" />
+                        </Trigger>
+                        <Trigger Property="IsKeyboardFocused" Value="True">
+                            <Setter TargetName="Bg" Property="BorderBrush" Value="White" />
+                            <Setter TargetName="Bg" Property="BorderThickness" Value="2" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- On/off switch with a springy knob. -->
+    <Style x:Key="Toggle" TargetType="CheckBox">
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="FontFamily" Value="{StaticResource Rounded}" />
+        <Setter Property="FontSize" Value="13" />
+        <Setter Property="Foreground" Value="{DynamicResource Text}" />
+        <Setter Property="Margin" Value="0,4" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="CheckBox">
+                    <Grid Background="Transparent">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <ContentPresenter VerticalAlignment="Center" Margin="0,0,12,0" />
+                        <Border x:Name="Track" Grid.Column="1" Width="46" Height="28" CornerRadius="14"
+                                Background="{DynamicResource Track}" BorderThickness="2" BorderBrush="Transparent">
+                            <Ellipse x:Name="Knob" Width="20" Height="20" HorizontalAlignment="Left" Margin="2,0"
+                                     Fill="White" RenderTransformOrigin="0.5,0.5">
+                                <Ellipse.RenderTransform>
+                                    <TransformGroup>
+                                        <ScaleTransform />
+                                        <TranslateTransform />
+                                    </TransformGroup>
+                                </Ellipse.RenderTransform>
+                                <Ellipse.Effect>
+                                    <DropShadowEffect BlurRadius="6" ShadowDepth="1" Opacity="0.3" />
+                                </Ellipse.Effect>
+                            </Ellipse>
+                        </Border>
+                    </Grid>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsChecked" Value="True">
+                            <Setter TargetName="Track" Property="Background" Value="{DynamicResource Primary}" />
+                            <Trigger.EnterActions>
+                                <BeginStoryboard>
+                                    <Storyboard>
+                                        <DoubleAnimation Storyboard.TargetName="Knob" Duration="0:0:0.9"
+                                                         Storyboard.TargetProperty="(UIElement.RenderTransform).(TransformGroup.Children)[1].(TranslateTransform.X)"
+                                                         To="18" EasingFunction="{StaticResource PopEase}" />
+                                    </Storyboard>
+                                </BeginStoryboard>
+                            </Trigger.EnterActions>
+                            <Trigger.ExitActions>
+                                <BeginStoryboard>
+                                    <Storyboard>
+                                        <DoubleAnimation Storyboard.TargetName="Knob" Duration="0:0:0.9"
+                                                         Storyboard.TargetProperty="(UIElement.RenderTransform).(TransformGroup.Children)[1].(TranslateTransform.X)"
+                                                         To="0" EasingFunction="{StaticResource PopEase}" />
+                                    </Storyboard>
+                                </BeginStoryboard>
+                            </Trigger.ExitActions>
+                        </Trigger>
+                        <Trigger Property="IsKeyboardFocused" Value="True">
+                            <Setter TargetName="Track" Property="BorderBrush" Value="{DynamicResource Primary}" />
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter Property="Opacity" Value="0.45" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- A chip you pick one of. -->
+    <Style x:Key="Chip" TargetType="RadioButton">
+        <Setter Property="m:Squish.Enabled" Value="True" />
+        <Setter Property="m:Squish.HoverScale" Value="1.06" />
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="FontFamily" Value="{StaticResource Rounded}" />
+        <Setter Property="FontSize" Value="12" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="Foreground" Value="{DynamicResource Primary}" />
+        <Setter Property="Margin" Value="0,0,6,6" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="RadioButton">
+                    <Border x:Name="Bg" CornerRadius="10" Padding="12,6" Background="{DynamicResource PrimarySoft}"
+                            BorderThickness="2" BorderBrush="Transparent" RenderTransformOrigin="0.5,0.5">
+                        <Border.RenderTransform>
+                            <ScaleTransform />
+                        </Border.RenderTransform>
+                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsChecked" Value="True">
+                            <Setter TargetName="Bg" Property="Background" Value="{DynamicResource Primary}" />
+                            <Setter Property="Foreground" Value="{DynamicResource OnPrimary}" />
+                            <Trigger.EnterActions>
+                                <BeginStoryboard>
+                                    <Storyboard>
+                                        <DoubleAnimation Storyboard.TargetName="Bg" Storyboard.TargetProperty="(UIElement.RenderTransform).(ScaleTransform.ScaleX)"
+                                                         From="0.8" To="1" Duration="0:0:0.9" EasingFunction="{StaticResource PopEase}" />
+                                        <DoubleAnimation Storyboard.TargetName="Bg" Storyboard.TargetProperty="(UIElement.RenderTransform).(ScaleTransform.ScaleY)"
+                                                         From="0.8" To="1" Duration="0:0:0.9" EasingFunction="{StaticResource PopEase}" />
+                                    </Storyboard>
+                                </BeginStoryboard>
+                            </Trigger.EnterActions>
+                        </Trigger>
+                        <Trigger Property="IsKeyboardFocused" Value="True">
+                            <Setter TargetName="Bg" Property="BorderBrush" Value="{DynamicResource Text}" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- A color dot for the lightbar color. Its Background is the color. -->
+    <Style x:Key="Swatch" TargetType="RadioButton">
+        <Setter Property="m:Squish.Enabled" Value="True" />
+        <Setter Property="m:Squish.HoverScale" Value="1.15" />
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="Width" Value="32" />
+        <Setter Property="Height" Value="32" />
+        <Setter Property="Margin" Value="0,0,6,6" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="RadioButton">
+                    <Grid>
+                        <Ellipse x:Name="Ring" Stroke="{DynamicResource Text}" StrokeThickness="2.5" Opacity="0" />
+                        <Ellipse Margin="5" Fill="{TemplateBinding Background}" />
+                        <Ellipse x:Name="Check" Width="8" Height="8" Fill="White" Opacity="0" RenderTransformOrigin="0.5,0.5">
+                            <Ellipse.RenderTransform>
+                                <ScaleTransform ScaleX="0" ScaleY="0" />
+                            </Ellipse.RenderTransform>
+                        </Ellipse>
+                    </Grid>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsChecked" Value="True">
+                            <Setter TargetName="Ring" Property="Opacity" Value="1" />
+                            <Setter TargetName="Check" Property="Opacity" Value="1" />
+                            <Trigger.EnterActions>
+                                <BeginStoryboard>
+                                    <Storyboard>
+                                        <DoubleAnimation Storyboard.TargetName="Check" Storyboard.TargetProperty="(UIElement.RenderTransform).(ScaleTransform.ScaleX)"
+                                                         To="1" Duration="0:0:0.9" EasingFunction="{StaticResource PopEase}" />
+                                        <DoubleAnimation Storyboard.TargetName="Check" Storyboard.TargetProperty="(UIElement.RenderTransform).(ScaleTransform.ScaleY)"
+                                                         To="1" Duration="0:0:0.9" EasingFunction="{StaticResource PopEase}" />
+                                    </Storyboard>
+                                </BeginStoryboard>
+                            </Trigger.EnterActions>
+                            <Trigger.ExitActions>
+                                <BeginStoryboard>
+                                    <Storyboard>
+                                        <DoubleAnimation Storyboard.TargetName="Check" Storyboard.TargetProperty="(UIElement.RenderTransform).(ScaleTransform.ScaleX)"
+                                                         To="0" Duration="0:0:0.15" />
+                                        <DoubleAnimation Storyboard.TargetName="Check" Storyboard.TargetProperty="(UIElement.RenderTransform).(ScaleTransform.ScaleY)"
+                                                         To="0" Duration="0:0:0.15" />
+                                    </Storyboard>
+                                </BeginStoryboard>
+                            </Trigger.ExitActions>
+                        </Trigger>
+                        <Trigger Property="IsKeyboardFocused" Value="True">
+                            <Setter TargetName="Ring" Property="Opacity" Value="0.6" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style TargetType="ToolTip">
+        <Setter Property="FontFamily" Value="{StaticResource Rounded}" />
+    </Style>
+</ResourceDictionary>

@@ -49,8 +49,10 @@ controller itself reports.
 
 ## Install
 
-Grab `Blippy-win-x64` from the latest CI run's artifacts, unzip it anywhere and run `Blippy.exe`. It is a
-single self-contained file; nothing to install. Windows 10 (2004) or newer.
+Download the latest `Blippy-<version>-win-x64.zip` from
+[Releases](https://github.com/drluciano/blippy/releases/latest), unzip it anywhere and run `Blippy.exe`.
+It is a single self-contained file; nothing to install. Windows 10 (2004) or newer. Each release also has a
+`.sha256` file to check the download against.
 
 New tray icons start out under the **^** arrow; drag them onto the taskbar so they are always visible.
 
@@ -68,6 +70,20 @@ dotnet test tests/Blippy.Core.Tests
 dotnet run --project src/Blippy                          # Windows only
 dotnet run --project src/Blippy -- --preview preview     # renders screenshots with sample devices, then exits
 ```
+
+### Releasing
+
+Tag a commit on `main` with a version and push the tag:
+
+```bash
+git tag v0.2.0 && git push origin v0.2.0
+```
+
+Or run the **Release** workflow from the Actions tab and type the version. Either way
+`.github/workflows/release.yml` runs the tests, builds `Blippy.exe` stamped with that version, checks it
+starts, and publishes a GitHub release with the zip, its SHA-256 checksum, two screenshots and notes
+generated from the merged pull requests. A version with a suffix, like `0.2.0-beta.1`, is marked as a
+pre-release.
 
 CI (`.github/workflows/ci.yml`, on `windows-latest`) runs the tests, publishes a single-file
 `Blippy.exe`, runs it once with `--preview` to prove the UI loads on Windows, and uploads both the app and

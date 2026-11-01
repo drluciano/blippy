@@ -10,6 +10,9 @@ on:
       version:
         description: Version to release, like 0.2.0 (tags the current commit v0.2.0)
         required: true
+  # Every pull request gets a dry run of everything but the publish step, so a
+  # change that would break packaging shows up before a release is cut.
+  pull_request:
 
 permissions:
   contents: write
@@ -26,7 +29,11 @@ jobs:
         env:
           INPUT_VERSION: ${{ inputs.version }}
         run: |
-          $raw = if ($env:GITHUB_EVENT_NAME -eq 'workflow_dispatch') { $env:INPUT_VERSION } else { $env:GITHUB_REF_NAME }
+          $raw = switch ($env:GITHUB_EVENT_NAME) {
+            'workflow_dispatch' { $env:INPUT_VERSION }
+            'pull_request' { '0.0.0-dryrun' }
+            default { $env:GITHUB_REF_NAME }
+          }
           $version = $raw.Trim() -replace '^v', ''
           if ($version -notmatch '^\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?$') { throw "'$raw' is not a version like 0.2.0 or 0.2.0-beta.1" }
           "version=$version" >> $env:GITHUB_OUTPUT
@@ -69,6 +76,7 @@ jobs:
           "name=$name" >> $env:GITHUB_OUTPUT
 
       - name: Publish the GitHub release
+        if: github.event_name != 'pull_request'
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
